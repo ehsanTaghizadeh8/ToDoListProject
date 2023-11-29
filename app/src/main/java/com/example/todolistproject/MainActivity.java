@@ -1,29 +1,20 @@
 package com.example.todolistproject;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.AppCompatEditText;
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
-
 import com.example.todolistproject.adapter.TaskAdapter;
-import com.example.todolistproject.database.SQLiteDataBaseClass;
+import com.example.todolistproject.database.AppDataBase;
 import com.example.todolistproject.dialogfragment.AddTaskDialog;
 import com.example.todolistproject.dialogfragment.EditTaskDialog;
+import com.example.todolistproject.interface_dao.TaskDao;
 import com.example.todolistproject.model.TaskModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements AddTaskDialog.addNewTaskCallBack, TaskAdapter.taskItemEventListener
@@ -34,19 +25,21 @@ public class MainActivity extends AppCompatActivity implements AddTaskDialog.add
  SearchView searchBox;
  List<TaskModel> taskModels;
  TaskAdapter adapter = new TaskAdapter(this);
- SQLiteDataBaseClass sqLite = new SQLiteDataBaseClass(this);
+private TaskDao taskDao;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        //initialize taskDao interface
+        taskDao = AppDataBase.getAppDataBase(this).getTaskDao();
         //find by id
         searchBox = findViewById(R.id.searchView);
         clearAll = findViewById(R.id.btn_clear_all);
         btnAdd = findViewById(R.id.btn_main_add);
         recyclerView = findViewById(R.id.recycler_main);
-        //get tasks from sqlite data base method
-        taskModels = sqLite.getTask();
+        //get tasks
+        taskModels = taskDao.getTasks();
         //initialize list of adapter
         adapter.addItems(taskModels);
         //recycler set options
@@ -62,10 +55,10 @@ public class MainActivity extends AppCompatActivity implements AddTaskDialog.add
             @Override
             public boolean onQueryTextChange(String newText) {
                 if (newText.length() > 0) {
-                    List<TaskModel> task = sqLite.searchBox(newText);
+                    List<TaskModel> task = taskDao.search(newText);
                     adapter.setTask(task);
                 } else {
-                    List<TaskModel> task = sqLite.getTask();
+                    List<TaskModel> task = taskDao.getTasks();
                     adapter.setTask(task);
                 }
                 return true;
@@ -87,15 +80,15 @@ public class MainActivity extends AppCompatActivity implements AddTaskDialog.add
                 //clear all task in my list and adapter
                 adapter.clearAllItems();
                 //clear all data in sqlite data base
-                sqLite.clearAllData();
+                taskDao.clearAll();
             }
         });
     }
 
     @Override
     public void clickToAdd(TaskModel task) {
-        //get id from method in the sqlite database class
-        long id = sqLite.addTask(task);
+        //get id
+        long id = taskDao.addTask(task);
         if (id != -1){
             task.setId(id);
             //add items in adapter in zero position
@@ -107,7 +100,7 @@ public class MainActivity extends AppCompatActivity implements AddTaskDialog.add
     @Override
     public void onDeleteButtonPress(TaskModel task) {
         //if id bigger than zero call remove method in adapter and remove item in adapter
-        int id = sqLite.deleteTask(task);
+        int id = taskDao.deleteTask(task);
         if (id > 0){
             adapter.removeItem(task);
         }
@@ -127,13 +120,13 @@ public class MainActivity extends AppCompatActivity implements AddTaskDialog.add
     @Override
     public void onItemCheckedChange(TaskModel taskModel) {
         //set check change check box
-        sqLite.updateTask(taskModel);
+        taskDao.updateTask(taskModel);
     }
 
     @Override
     public void clickToEdit(TaskModel task) {
         //interface from editTaskDialog to update item
-        int result = sqLite.updateTask(task);
+        int result = taskDao.updateTask(task);
         if (result > 0){
             adapter.updateItem(task);
         }
